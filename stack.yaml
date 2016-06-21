@@ -1,7 +1,7 @@
 # For more information, see: http://docs.haskellstack.org/en/stable/yaml_configuration.html
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: lts-6.2
+resolver: nightly-2016-06-21
 
 # Local packages, usually specified by relative directory name
 packages:
@@ -9,12 +9,15 @@ packages:
 - location:
     git: git@github.com:fumieval/holz.git
     commit: 9a0a079
-
+- location:
+    git: git@github.com:bsl/bindings-GLFW.git
+    commit: 3bab818
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
 - boundingboxes-0.2.3
 - freetype2-0.1.1
+- GLFW-b-1.4.8.0
 
 # Override default flag values for local packages and extra-deps
 flags: {}

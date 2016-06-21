@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, GADTs, FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell, GADTs, FlexibleContexts, DeriveTraversable #-}
 module Jugendstil.Doc where
 
 import Control.Lens
@@ -15,10 +15,10 @@ import Debug.Trace
 data Doc a where
   Text :: !a -> Text.Renderer -> RGBA -> String -> Doc a
   Prim :: !a -> (Box V2 Float -> (PrimitiveMode, [Vertex])) -> Doc a
-  Div :: !a -> (Box V2 Float -> Doc a) -> Doc a
   HArray :: !a -> [Doc a] -> Doc a
   VArray :: !a -> [Doc a] -> Doc a
   Layers :: !a -> [Doc a] -> Doc a
+  deriving (Functor, Foldable, Traversable)
 
 text :: (Monoid s) => Text.Renderer -> RGBA -> String -> Doc s
 text = Text mempty
@@ -55,13 +55,11 @@ getStyle (Text s _ _ _) = s
 getStyle (Prim s _) = s
 getStyle (HArray s ws) = s `mappend` foldMap getStyle ws
 getStyle (VArray s ws) = s `mappend` foldMap getStyle ws
-getStyle (Div s _) = s
 getStyle (Layers s _) = s
 
 style :: Traversal' (Doc s) s
 style f (Text s w fg str) = f s <&> \s' -> Text s' w fg str
 style f (Prim s bg) = f s <&> \s' -> Prim s' bg
-style f (Div s a) = f s <&> \s' -> Div s' a
 style f (HArray s ws) = f s <&> \s' -> HArray s' ws
 style f (VArray s ws) = f s <&> \s' -> VArray s' ws
 style f (Layers s ws) = f s <&> \s' -> Layers s' ws
@@ -71,7 +69,6 @@ renderDoc (Text (Box (V2 _ y0) (V2 x1 y1)) typewriter fg str) = do
   typewriter ..- Text.simpleR ((y1 - y0) * 2 / 3) fg str
     (translate (V3 (x1 - 4) (y0 + (y1 - y0) * 0.75) 1))
 renderDoc (Prim box@(Box v0 v1) mk) = draw identity $ mk box
-renderDoc (Div s k) = renderDoc (k s)
 renderDoc (HArray _ ws) = mapM_ renderDoc ws
 renderDoc (VArray _ ws) = mapM_ renderDoc ws
 renderDoc (Layers _ ws) = mapM_ renderDoc ws
@@ -148,5 +145,4 @@ computeStyle s0 (VArray s xs0) = VArray s' $ go y0 (map (fromMaybe defH) hs0) xs
         Absolute h -> Just h
         Relative k -> Just $ (y1 - y0) * k
         Auto -> Nothing
-computeStyle s0 (Div s k) = let s' = fillAuto s0 s in Div s' $ computeStyle s' . k
 computeStyle s0 (Layers s xs) = let s' = fillAuto s0 s in Layers s' $ map (computeStyle s') xs
