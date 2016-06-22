@@ -18,7 +18,6 @@ library
   exposed-modules:
     Jugendstil
     Jugendstil.Widget.Chart
-    Jugendstil.Widget
     Jugendstil.Doc
     Jugendstil.Color
   build-depends:       base >= 4.7 && < 5
