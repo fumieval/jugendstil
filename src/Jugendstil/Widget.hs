@@ -16,7 +16,7 @@ data Widget x where
   MouseCursor :: V2 Float -> Widget ()
   MouseScroll :: V2 Float -> Widget ()
   Keyboard :: Chatter Key -> Widget ()
-  Draw :: Widget (Doc Arrangement)
+  Draw :: Widget (Doc (Arrangement ()))
 
 openWidget :: (MonadMask m, MonadIO m) => Box V2 Float -> Object Widget m -> IO (Window, m ())
 openWidget box0 obj = openWindow Resizable box0 >>= \w -> give w $ do

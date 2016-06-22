@@ -64,29 +64,31 @@ style f (HArray s ws) = f s <&> \s' -> HArray s' ws
 style f (VArray s ws) = f s <&> \s' -> VArray s' ws
 style f (Layers s ws) = f s <&> \s' -> Layers s' ws
 
-renderDoc :: Given Window => Doc (Box V2 Float) -> IO ()
-renderDoc (Text (Box (V2 _ y0) (V2 x1 y1)) typewriter fg str) = do
+renderDoc :: Given Window => Doc (Box V2 Float, a) -> IO ()
+renderDoc (Text (Box (V2 _ y0) (V2 x1 y1), _) typewriter fg str) = do
   typewriter ..- Text.simpleR ((y1 - y0) * 2 / 3) fg str
     (translate (V3 (x1 - 4) (y0 + (y1 - y0) * 0.75) 1))
-renderDoc (Prim box@(Box v0 v1) mk) = draw identity $ mk box
+renderDoc (Prim (box@(Box v0 v1), _) mk) = draw identity $ mk box
 renderDoc (HArray _ ws) = mapM_ renderDoc ws
 renderDoc (VArray _ ws) = mapM_ renderDoc ws
 renderDoc (Layers _ ws) = mapM_ renderDoc ws
 
 data Position = Absolute Float | Relative Float | Auto deriving Show
 
-data Arrangement = Arrangement
+data Arrangement a = Arrangement
   { _width :: !Position
   , _height :: !Position
   , _xpos :: !Position
   , _ypos :: !Position
-  }
+  , _arranged :: a
+  } deriving (Functor, Foldable, Traversable)
 makeLenses ''Arrangement
 
-fillAuto :: Box V2 Float -> Arrangement -> Box V2 Float
-fillAuto box@(Box (V2 x0 y0) (V2 x1 y1)) (Arrangement w h x y) = box
+fillAuto :: Box V2 Float -> Arrangement a -> (Box V2 Float, a)
+fillAuto box@(Box (V2 x0 y0) (V2 x1 y1)) (Arrangement w h x y a) = (box
   & Box.size (pure 0.5) %~ (\v -> k <$> v <*> V2 w h)
   & Box.position (pure 0.5) %~ \(V2 cx cy) -> V2 (pos cx x0 x1 x) (pos cy y0 y1 y)
+  , a)
   where
     k t (Relative v) = t * v
     k _ (Absolute t) = t
@@ -96,21 +98,22 @@ fillAuto box@(Box (V2 x0 y0) (V2 x1 y1)) (Arrangement w h x y) = box
     pos t0 _ _ (Absolute t) = t0 + t
     pos t0 _ _ Auto = t0
 
-instance Monoid Arrangement where
-  mempty = Arrangement Auto Auto Auto Auto
-  mappend (Arrangement w0 h0 x0 y0) (Arrangement w1 h1 x1 y1) = Arrangement
+instance Monoid a => Monoid (Arrangement a) where
+  mempty = Arrangement Auto Auto Auto Auto mempty
+  mappend (Arrangement w0 h0 x0 y0 a) (Arrangement w1 h1 x1 y1 b) = Arrangement
     (k w0 w1)
     (k h0 h1)
     (k x0 x1)
     (k y0 y1)
+    (mappend a b)
     where
-      k Auto a = a
-      k a Auto = a
-      k (Relative a) (Relative b) = Relative $ max a b
-      k (Absolute a) (Absolute b) = Absolute $ max a b
-      k _ a = a
+      k Auto x = x
+      k x Auto = x
+      k (Relative x) (Relative y) = Relative $ max x y
+      k (Absolute x) (Absolute y) = Absolute $ max x y
+      k _ x = x
 
-computeStyle :: Box V2 Float -> Doc Arrangement -> Doc (Box V2 Float)
+computeStyle :: Box V2 Float -> Doc (Arrangement a) -> Doc (Box V2 Float, a)
 computeStyle s0 (Text s w fg str) = Text (fillAuto s0 s) w fg str
 computeStyle s0 (Prim s bg) = Prim (fillAuto s0 s) bg
 computeStyle s0 (HArray s xs0) = HArray s' $ go y0 (map (fromMaybe defH) ws0) xs0
@@ -118,7 +121,7 @@ computeStyle s0 (HArray s xs0) = HArray s' $ go y0 (map (fromMaybe defH) ws0) xs
     go x (w : ws) (t : ts) = computeStyle (Box (V2 x y0) (V2 (x + w) y1)) t
         : go (x + w) ws ts
     go _ _ _ = []
-    s'@(Box (V2 x0 y0) (V2 x1 y1)) = fillAuto s0 s
+    s'@(Box (V2 x0 y0) (V2 x1 y1), _) = fillAuto s0 s
     free = x1 - x0 - sumOf (folded . folded) ws0
     defH = free / fromIntegral (lengthOf (folded . only Nothing) ws0)
     ws0 = do
@@ -134,7 +137,7 @@ computeStyle s0 (VArray s xs0) = VArray s' $ go y0 (map (fromMaybe defH) hs0) xs
     go y (h : hs) (t : ts) = computeStyle (Box (V2 x0 y) (V2 x1 (y + h))) t
         : go (y + h) hs ts
     go _ _ _ = []
-    s'@(Box (V2 x0 y0) (V2 x1 y1)) = fillAuto s0 s
+    s'@(Box (V2 x0 y0) (V2 x1 y1), _) = fillAuto s0 s
     free = y1 - y0 - sumOf (folded . folded) hs0
     defH = free / fromIntegral (lengthOf (folded . only Nothing) hs0)
     hs0 = do
@@ -145,4 +148,4 @@ computeStyle s0 (VArray s xs0) = VArray s' $ go y0 (map (fromMaybe defH) hs0) xs
         Absolute h -> Just h
         Relative k -> Just $ (y1 - y0) * k
         Auto -> Nothing
-computeStyle s0 (Layers s xs) = let s' = fillAuto s0 s in Layers s' $ map (computeStyle s') xs
+computeStyle s0 (Layers s xs) = let s' = fillAuto s0 s in Layers s' $ map (computeStyle $ fst s') xs

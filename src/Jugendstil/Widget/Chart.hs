@@ -8,7 +8,7 @@ import Control.Lens
 import Graphics.Holz
 import Control.Monad
 
-plot :: RGBA -> [V2 Float] -> Doc Arrangement
+plot :: Monoid a => RGBA -> [V2 Float] -> Doc (Arrangement a)
 plot col ps = Prim mempty $ \box@(Box (V2 x0 y0) (V2 x1 y1)) -> (LineStrip,
   [ Vertex (V3 x y 1) (V2 0 0) (V3 0 0 1) col
   | V2 u v <- ps
