@@ -73,6 +73,10 @@ renderDoc (HArray _ ws) = mapM_ renderDoc ws
 renderDoc (VArray _ ws) = mapM_ renderDoc ws
 renderDoc (Layers _ ws) = mapM_ renderDoc ws
 
+mouseOver :: (Given Window, Monoid r) => (a -> r) -> Doc (Box V2 Float, a) -> IO r
+mouseOver k doc = getCursorPos <&> \pos ->
+    foldMap (\(box, a) -> if Box.isInside pos box then k a else mempty) doc
+
 data Position = Absolute Float | Relative Float | Auto deriving Show
 
 data Arrangement a = Arrangement
