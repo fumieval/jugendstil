@@ -1,5 +1,5 @@
 name:                jugendstil
-version:             0.1.0.0
+version:             0
 synopsis:            New style GUI library
 description:         Please see README.md
 homepage:            https://github.com/fumieval/jugendstil#readme
@@ -17,7 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:
     Jugendstil
-    Jugendstil.Widget.Chart
+    Jugendstil.Doc.Chart
     Jugendstil.Doc
     Jugendstil.Color
   build-depends:       base >= 4.7 && < 5

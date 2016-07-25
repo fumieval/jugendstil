@@ -2,48 +2,49 @@
 module Jugendstil.Doc where
 
 import Control.Lens
-import Linear
-import Graphics.Holz
+import Control.Monad
+import Control.Object
 import Data.Maybe (fromMaybe)
-import qualified Data.BoundingBox as Box
-import qualified Graphics.Holz.Text as Text
+import Graphics.Holz
 import Graphics.Holz.Vertex
 import Jugendstil.Color
-import Control.Object
-import Debug.Trace
+import Linear
+import qualified Data.BoundingBox as Box
+import qualified Graphics.Holz.Text as Text
 
-data Doc a where
-  Prim :: !a -> (Box V2 Float -> [(Maybe Texture, PrimitiveMode, [Vertex])]) -> Doc a
-  Docs :: !a -> [Doc a] -> Doc a
-  Viewport :: !a -> Doc a -> Doc a
+data Doc f a where
+  Prim :: !a -> (Box V2 Float -> [(Maybe Texture, PrimitiveMode, [Vertex])]) -> Doc f a
+  Docs :: !a -> f (Doc f a) -> Doc f a
+  Viewport :: !a -> Doc f a -> Doc f a
   deriving (Functor, Foldable, Traversable)
 
-renderDoc :: Given Window => (a -> Box V2 Float) -> Doc a -> IO ()
-renderDoc k (Prim a mk) = draw identity $ mk (k a)
+renderDoc :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO ()
+renderDoc k (Prim a mk) = forM_ (mk (k a)) $ \(tex, prim, vs) -> do
+    buf <- registerVertex prim vs
+    case tex of
+        Nothing -> drawVertexPlain identity buf
+        Just t -> drawVertex identity t buf
+    releaseVertex buf
 renderDoc k (Docs _ xs) = mapM_ (renderDoc k) xs
 renderDoc k (Viewport a b) = do
     let Box (V2 x0 y0) (V2 x1 y1) = k a
-    glViewport x0 y0 x1 y1
+    -- glViewport x0 y0 x1 y1
     setProjection $ ortho x0 x1 y1 y0 (-1) 1
     renderDoc k b
 
-mouseOver :: Given Window => (a -> Box V2 Float) -> Doc a -> IO [a]
+mouseOver :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO [a]
 mouseOver k doc = getCursorPos <&> \pos ->
-    foldMap (\(a -> if Box.isInside pos (k box) then [a] else []) doc
+    foldMap (\a -> [a | Box.isInside pos (k a)]) doc
 
-fill :: Monoid s => RGBA -> Doc s
-fill bg = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> (TriangleStrip,
+fill :: Monoid s => RGBA -> Doc f s
+fill bg = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> [(Nothing, TriangleStrip,
   [ Vertex (V3 x0 y0 0) (V2 0 0) (V3 0 0 1) bg
   , Vertex (V3 x1 y0 0) (V2 1 0) (V3 0 0 1) bg
   , Vertex (V3 x0 y1 0) (V2 0 1) (V3 0 0 1) bg
   , Vertex (V3 x1 y1 0) (V2 1 1) (V3 0 0 1) bg
-  ])
+  ])]
 
-instance Monoid a => Monoid (Doc a) where
-  mempty = Docs mempty []
-  mappend a b = Docs mempty [a, b]
-
-style :: Lens' (Doc s) s
+style :: Lens' (Doc f s) s
 style f (Prim s bg) = f s <&> \s' -> Prim s' bg
 style f (Docs s ws) = f s <&> \s' -> Docs s' ws
 style f (Viewport s d) = f s <&> \s' -> Viewport s' d
