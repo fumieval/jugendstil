@@ -20,21 +20,21 @@ data Doc f a where
 
 renderDoc :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO ()
 renderDoc k (Prim a mk) = forM_ (mk (k a)) $ \(tex, prim, vs) -> do
-    buf <- registerVertex prim vs
-    case tex of
-        Nothing -> drawVertexPlain identity buf
-        Just t -> drawVertex identity t buf
-    releaseVertex buf
+  buf <- registerVertex prim vs
+  case tex of
+    Nothing -> drawVertexPlain identity buf
+    Just t -> drawVertex identity t buf
+  releaseVertex buf
 renderDoc k (Docs _ xs) = mapM_ (renderDoc k) xs
 renderDoc k (Viewport a b) = do
-    let Box (V2 x0 y0) (V2 x1 y1) = k a
-    -- glViewport x0 y0 x1 y1
-    setProjection $ ortho x0 x1 y1 y0 (-1) 1
-    renderDoc k b
+  let Box (V2 x0 y0) (V2 x1 y1) = k a
+  -- glViewport x0 y0 x1 y1
+  setProjection $ ortho x0 x1 y1 y0 (-1) 1
+  renderDoc k b
 
 mouseOver :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO [a]
 mouseOver k doc = getCursorPos <&> \pos ->
-    foldMap (\a -> [a | Box.isInside pos (k a)]) doc
+  foldMap (\a -> [a | Box.isInside pos (k a)]) doc
 
 fill :: Monoid s => RGBA -> Doc f s
 fill bg = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> [(Nothing, TriangleStrip,

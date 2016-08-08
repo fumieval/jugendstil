@@ -25,4 +25,4 @@ computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs _ (Vertical xs))
 
 solveLayout :: Float -> [constraint] -> [Float]
 solveLayout total constraints = replicate n (total / fromIntegral n) where
-    n = length constraints
+  n = length constraints
