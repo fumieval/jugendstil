@@ -6,9 +6,7 @@ resolver: nightly-2016-07-19
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-- location:
-    git: git@github.com:fumieval/holz.git
-    commit: 9a0a079
+- location: ../holz
 - location:
     git: git@github.com:bsl/bindings-GLFW.git
     commit: 3bab818
