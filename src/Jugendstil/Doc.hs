@@ -13,13 +13,13 @@ import qualified Data.BoundingBox as Box
 import qualified Graphics.Holz.Text as Text
 
 data Doc f a where
-  Prim :: !a -> (Box V2 Float -> [(Maybe Texture, PrimitiveMode, [Vertex])]) -> Doc f a
+  Prim :: !a -> (Box V2 Float -> IO [(Maybe Texture, PrimitiveMode, [Vertex])]) -> Doc f a
   Docs :: !a -> f (Doc f a) -> Doc f a
   Viewport :: !a -> Doc f a -> Doc f a
   deriving (Functor, Foldable, Traversable)
 
 renderDoc :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO ()
-renderDoc k (Prim a mk) = forM_ (mk (k a)) $ \(tex, prim, vs) -> do
+renderDoc k (Prim a mk) = mk (k a) >>= \xs -> forM_ xs $ \(tex, prim, vs) -> do
   buf <- registerVertex prim vs
   case tex of
     Nothing -> drawVertexPlain identity buf
@@ -37,7 +37,7 @@ mouseOver k doc = getCursorPos <&> \pos ->
   foldMap (\a -> [a | Box.isInside pos (k a)]) doc
 
 fill :: Monoid s => RGBA -> Doc f s
-fill bg = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> [(Nothing, TriangleStrip,
+fill bg = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> pure [(Nothing, TriangleStrip,
   [ Vertex (V3 x0 y0 0) (V2 0 0) (V3 0 0 1) bg
   , Vertex (V3 x1 y0 0) (V2 1 0) (V3 0 0 1) bg
   , Vertex (V3 x0 y1 0) (V2 0 1) (V3 0 0 1) bg
