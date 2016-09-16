@@ -3,6 +3,7 @@ module Jugendstil.Doc where
 
 import Control.Lens
 import Control.Monad
+import Control.Monad.IO.Class
 import Control.Object
 import Data.Maybe (fromMaybe)
 import Graphics.Holz
@@ -18,8 +19,8 @@ data Doc f a where
   Viewport :: !a -> Doc f a -> Doc f a
   deriving (Functor, Foldable, Traversable)
 
-renderDoc :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO ()
-renderDoc k (Prim a mk) = mk (k a) >>= \xs -> forM_ xs $ \(tex, prim, vs) -> do
+renderDoc :: (Foldable f, Given Window, MonadIO m) => (a -> Box V2 Float) -> Doc f a -> m ()
+renderDoc k (Prim a mk) = liftIO $ mk (k a) >>= \xs -> forM_ xs $ \(tex, prim, vs) -> do
   buf <- registerVertex prim vs
   case tex of
     Nothing -> drawVertexPlain identity buf
@@ -29,7 +30,7 @@ renderDoc k (Docs _ xs) = mapM_ (renderDoc k) xs
 renderDoc k (Viewport a b) = do
   let Box (V2 x0 y0) (V2 x1 y1) = k a
   -- glViewport x0 y0 x1 y1
-  setProjection $ ortho x0 x1 y1 y0 (-1) 1
+  liftIO $ setProjection $ ortho x0 x1 y1 y0 (-1) 1
   renderDoc k b
 
 mouseOver :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO [a]
