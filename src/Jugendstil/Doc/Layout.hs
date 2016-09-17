@@ -1,28 +1,62 @@
 {-# LANGUAGE TemplateHaskell, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
-module Jugendstil.Doc.Layout where
+module Jugendstil.Doc.Layout
+  (Layout(..)
+  , computeStyle
+  , Document
+  , rows
+  , columns
+  , docs
+  , liste
+  , (==>))
+  where
 
 import Jugendstil.Doc
-import Control.Lens
 import Data.BoundingBox as Box
 import Linear
+import Data.Maybe (maybeToList)
+import Data.Monoid
 
-data Layout a = Horizontal [a] | Vertical [a]
+data Layout a = Horizontal [(Maybe Float, a)]
+    | Vertical [(Maybe Float, a)]
+    | Stack [a]
 
-computeStyle :: Box V2 Float -> Doc Layout a -> Doc Layout (Box V2 Float)
-computeStyle box (Prim _ bg) = Prim box bg
-computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs _ (Horizontal xs))
-  = Docs box $ Horizontal $ zipWith computeStyle (boxes x0 widths) xs
+computeStyle :: Box V2 Float -> Doc Layout a -> Doc [] (Box V2 Float, a)
+computeStyle box (Prim a bg) = Prim (box, a) bg
+computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs a (Horizontal xs))
+  = Docs (box, a) $ boxes x0 $ sortLayout (x1 - x0) xs
   where
-    widths = solveLayout (x1 - x0) xs
-    boxes x (w:ws) = Box (V2 x y0) (V2 (x + w) y1) : boxes (x + w) ws
+    boxes x ((w, d):ws) = computeStyle (Box (V2 x y0) (V2 (x + w) y1)) d : boxes (x + w) ws
     boxes _ [] = []
-computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs _ (Vertical xs))
-  = Docs box $ Vertical $ zipWith computeStyle (boxes y0 heights) xs
+computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs a (Vertical xs))
+  = Docs (box, a) $ boxes y0 $ sortLayout (y1 - y0) xs
   where
-    heights = solveLayout (y1 - y0) xs
-    boxes y (h:hs) = Box (V2 x0 y) (V2 x1 (y + h)) : boxes (y + h) hs
+    boxes y ((h, d):hs) = computeStyle (Box (V2 x0 y) (V2 x1 (y + h))) d : boxes (y + h) hs
     boxes _ [] = []
+computeStyle box (Docs a (Stack xs)) = Docs (box, a) (map (computeStyle box) xs)
 
-solveLayout :: Float -> [constraint] -> [Float]
-solveLayout total constraints = replicate n (total / fromIntegral n) where
-  n = length constraints
+sortLayout :: Float -> [(Maybe Float, a)] -> [(Float, a)]
+sortLayout total xs = let (r, ys) = go total 0 xs in map ($ r) ys where
+  go :: Float -> Int -> [(Maybe Float, a)] -> (Float, [Float -> (Float, a)])
+  go t n ((Just r, a) : xs) = let v = total * r
+      in (const (v, a) :) <$> go (t - v) n xs
+  go t n ((Nothing, a) : xs) = (:) (\r -> (r, a)) <$> go t (n + 1) xs
+  go t n _ = (t / fromIntegral n, [])
+
+type Document = Doc Layout
+
+rows :: Monoid a => [(Maybe Float, Document a)] -> Document a
+rows xs = Docs mempty $ Vertical xs
+
+columns :: Monoid a => [(Maybe Float, Document a)] -> Document a
+columns xs = Docs mempty $ Horizontal xs
+
+docs :: Monoid a => [Document a] -> Document a
+docs xs = Docs mempty $ Stack xs
+
+liste :: ((Endo [(a, b)]), x) -> [(a, b)]
+liste (Endo f, _) = f []
+
+(==>) :: a -> b -> (Endo [(a, b)], ())
+a ==> b = (Endo ((a, b):), ())
+
+infix 0 ==>
