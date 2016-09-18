@@ -1,24 +1,27 @@
-{-# LANGUAGE TemplateHaskell, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE TemplateHaskell, LambdaCase, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Jugendstil.Doc.Layout
-  (Layout(..)
+  ( Layout(..)
   , computeStyle
   , Document
   , rows
   , columns
   , docs
-  , liste
-  , (==>))
+  , DoList
+  , unDoList
+  , (==>)
+  , rowsDL
+  , columnsDL)
   where
 
-import Jugendstil.Doc
 import Data.BoundingBox as Box
-import Linear
-import Data.Maybe (maybeToList)
 import Data.Monoid
+import Jugendstil.Doc
+import Linear
 
 data Layout a = Horizontal [(Maybe Float, a)]
     | Vertical [(Maybe Float, a)]
     | Stack [a]
+    deriving (Functor, Foldable, Traversable)
 
 computeStyle :: Box V2 Float -> Doc Layout a -> Doc [] (Box V2 Float, a)
 computeStyle box (Prim a bg) = Prim (box, a) bg
@@ -35,7 +38,7 @@ computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs a (Vertical xs))
 computeStyle box (Docs a (Stack xs)) = Docs (box, a) (map (computeStyle box) xs)
 
 sortLayout :: Float -> [(Maybe Float, a)] -> [(Float, a)]
-sortLayout total xs = let (r, ys) = go total 0 xs in map ($ r) ys where
+sortLayout total xs0 = let (r, ys) = go total 0 xs0 in map ($ r) ys where
   go :: Float -> Int -> [(Maybe Float, a)] -> (Float, [Float -> (Float, a)])
   go t n ((Just r, a) : xs) = let v = total * r
       in (const (v, a) :) <$> go (t - v) n xs
@@ -53,10 +56,18 @@ columns xs = Docs mempty $ Horizontal xs
 docs :: Monoid a => [Document a] -> Document a
 docs xs = Docs mempty $ Stack xs
 
-liste :: ((Endo [(a, b)]), x) -> [(a, b)]
-liste (Endo f, _) = f []
+type DoList a = (,) (Endo [a])
 
-(==>) :: a -> b -> (Endo [(a, b)], ())
+unDoList :: DoList a x -> [a]
+unDoList (Endo f, _) = f []
+
+(==>) :: a -> b -> DoList (a, b) ()
 a ==> b = (Endo ((a, b):), ())
 
 infix 0 ==>
+
+rowsDL :: Monoid a => DoList (Maybe Float, Document a) x -> Document a
+rowsDL = rows . unDoList
+
+columnsDL :: Monoid a => DoList (Maybe Float, Document a) x -> Document a
+columnsDL = columns . unDoList

@@ -27,6 +27,7 @@ library
       , boundingboxes
       , reflection
       , objective
+      , free
       , exceptions
       , transformers
       , linear

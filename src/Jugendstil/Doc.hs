@@ -5,7 +5,6 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Graphics.Holz
-import Graphics.Holz.Vertex
 import Jugendstil.Color
 import Linear
 import qualified Data.BoundingBox as Box
@@ -30,9 +29,10 @@ renderDoc k (Viewport a b) = do
   liftIO $ setProjection $ ortho x0 x1 y1 y0 (-1) 1
   renderDoc k b
 
-mouseOver :: (Foldable f, Given Window) => (a -> Box V2 Float) -> Doc f a -> IO [a]
-mouseOver k doc = getCursorPos <&> \pos ->
-  foldMap (\a -> [a | Box.isInside pos (k a)]) doc
+mouseOver :: (Foldable f, Given Window, MonadIO m, Monoid r)
+  => (a -> (Box V2 Float, r)) -> Doc f a -> m r
+mouseOver k doc = getCursorPos <&> \pos -> foldMap
+  (\a -> let (b, r) = k a in if Box.isInside pos b then r else mempty) doc
 
 fill :: Monoid s => RGBA -> Doc f s
 fill bg = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> pure [(Nothing, TriangleStrip,
