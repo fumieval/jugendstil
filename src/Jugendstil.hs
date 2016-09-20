@@ -3,6 +3,7 @@ module Jugendstil
   ( module Jugendstil.Doc
   , module Jugendstil.Doc.Layout
   , module Jugendstil.Color
+  , iterDocument
   , Box(..)
   ) where
 

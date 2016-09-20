@@ -5,9 +5,11 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Graphics.Holz
+import Graphics.Holz.Vertex (translate)
 import Jugendstil.Color
 import Linear
 import qualified Data.BoundingBox as Box
+import qualified Graphics.Holz.Text as Text
 
 data Doc f a where
   Prim :: !a -> (Given Window => Box V2 Float -> IO [(Maybe Texture, PrimitiveMode, [Vertex])]) -> Doc f a
@@ -23,11 +25,12 @@ renderDoc k (Prim a mk) = liftIO $ mk (k a) >>= \xs -> forM_ xs $ \(tex, prim, v
     Just t -> drawVertex identity t buf
   releaseVertex buf
 renderDoc k (Docs _ xs) = mapM_ (renderDoc k) xs
-renderDoc k (Viewport a b) = do
-  let Box (V2 x0 y0) (V2 x1 y1) = k a
-  -- glViewport x0 y0 x1 y1
+renderDoc k (Viewport a d) = do
+  let box@(Box (V2 x0 y0) (V2 x1 y1)) = k a
+  setViewport $ fmap round box
   liftIO $ setProjection $ ortho x0 x1 y1 y0 (-1) 1
-  renderDoc k b
+  renderDoc k d
+  setOrthographic
 
 mouseOver :: (Foldable f, Given Window, MonadIO m, Monoid r)
   => (a -> (Box V2 Float, r)) -> Doc f a -> m r
@@ -46,3 +49,15 @@ style :: Lens' (Doc f s) s
 style f (Prim s bg) = f s <&> \s' -> Prim s' bg
 style f (Docs s ws) = f s <&> \s' -> Docs s' ws
 style f (Viewport s d) = f s <&> \s' -> Viewport s' d
+
+text :: Monoid a => Text.Renderer -> V4 Float -> String -> Doc f a
+text renderer fg str = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> do
+  renderer Text...- do
+    let size = (y1 - y0) * 2 / 3
+    Text.string size fg str
+    V2 x y <- Text.getOffset
+    let k = min 1 $ (x1 - x0) / x
+    Text.render $ translate (V3 (x1 - 4 - k * x) (y0 + (y1 - y0) * 0.75 - k * y) 1)
+      !*! scaled (V4 k k k 1)
+    Text.clear
+  return []

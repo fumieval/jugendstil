@@ -6,6 +6,8 @@ module Jugendstil.Doc.Layout
   , rows
   , columns
   , docs
+  , margin
+  -- * DoList
   , DoList
   , unDoList
   , (==>)
@@ -21,6 +23,7 @@ import Linear
 data Layout a = Horizontal [(Maybe Float, a)]
     | Vertical [(Maybe Float, a)]
     | Stack [a]
+    | Extend (Box V2 Float -> Box V2 Float) a
     deriving (Functor, Foldable, Traversable)
 
 computeStyle :: Box V2 Float -> Doc Layout a -> Doc [] (Box V2 Float, a)
@@ -36,6 +39,7 @@ computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs a (Vertical xs))
     boxes y ((h, d):hs) = computeStyle (Box (V2 x0 y) (V2 x1 (y + h))) d : boxes (y + h) hs
     boxes _ [] = []
 computeStyle box (Docs a (Stack xs)) = Docs (box, a) (map (computeStyle box) xs)
+computeStyle box (Docs a (Extend f d)) = Docs (box, a) [computeStyle (f box) d]
 
 sortLayout :: Float -> [(Maybe Float, a)] -> [(Float, a)]
 sortLayout total xs0 = let (r, ys) = go total 0 xs0 in map ($ r) ys where
@@ -55,6 +59,11 @@ columns xs = Docs mempty $ Horizontal xs
 
 docs :: Monoid a => [Document a] -> Document a
 docs xs = Docs mempty $ Stack xs
+
+margin :: Monoid a => V4 Float -> Document a -> Document a
+margin (V4 t r b l) = Docs mempty
+  . Extend (\(V2 x0 y0 `Box` V2 x1 y1)
+      -> V2 (x0 + l) (y0 + t) `Box` V2 (x1 - r) (y1 - b))
 
 type DoList a = (,) (Endo [a])
 
