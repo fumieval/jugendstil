@@ -52,7 +52,7 @@ style f (Viewport s d) = f s <&> \s' -> Viewport s' d
 
 text :: Monoid a => Text.Renderer -> V4 Float -> String -> Doc f a
 text renderer fg str = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> do
-  renderer Text...- do
+  renderer `Text.runRenderer` do
     let size = (y1 - y0) * 2 / 3
     Text.string size fg str
     V2 x y <- Text.getOffset

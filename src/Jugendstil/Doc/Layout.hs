@@ -40,6 +40,7 @@ computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs a (Vertical xs))
     boxes _ [] = []
 computeStyle box (Docs a (Stack xs)) = Docs (box, a) (map (computeStyle box) xs)
 computeStyle box (Docs a (Extend f d)) = Docs (box, a) [computeStyle (f box) d]
+computeStyle box (Viewport a d) = Viewport (box, a) (computeStyle box d)
 
 sortLayout :: Float -> [(Maybe Float, a)] -> [(Float, a)]
 sortLayout total xs0 = let (r, ys) = go total 0 xs0 in map ($ r) ys where
