@@ -2,16 +2,13 @@
 module Jugendstil.Doc.TextBox where
 
 import Control.Lens
-import Control.Monad
 import Control.Monad.IO.Class
 import Data.List (foldl')
 import Graphics.Holz
 import Graphics.Holz.Vertex
-import Jugendstil.Color
-import Jugendstil.Doc.Layout
 import Jugendstil.Doc
+import Jugendstil.Doc.Widget
 import Linear
-import qualified Data.BoundingBox as Box
 import qualified Graphics.Holz.Text as Text
 
 type TextBox = (String, Int)
@@ -29,11 +26,11 @@ updateTextBox (str, p) = do
     move (V3 i j k) KeyDelete = V3 i (j + 1) k
     move (V3 i j k) KeyLeft = V3 i j (k - 1)
     move (V3 i j k) KeyRight = V3 i j (k + 1)
-    move (V3 i j k) KeyHome = V3 i j 0
-    move (V3 i j k) KeyEnd = V3 i j len
+    move (V3 i j _) KeyHome = V3 i j 0
+    move (V3 i j _) KeyEnd = V3 i j len
     move v _ = v
 
-docTextBox :: Monoid a => Text.Renderer -> V4 Float -> TextBox -> Document a
+docTextBox :: Monoid a => Text.Renderer -> V4 Float -> TextBox -> Doc f a
 docTextBox renderer fg (str, p) = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> do
   renderer `Text.runRenderer` do
     let size = (y1 - y0) * 2 / 3
@@ -50,3 +47,7 @@ docTextBox renderer fg (str, p) = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> 
     Text.render mat
     Text.clear
   return []
+
+textBoxWidget :: (MonadIO m, Given Window) => Text.Renderer -> V4 Float -> String -> Widget m String
+textBoxWidget renderer fg str0 = go (str0, length str0) where
+  go b = Widget $ (\() -> (fst b, \_ -> go <$> updateTextBox b)) <$> docTextBox renderer fg b

@@ -1,8 +1,10 @@
-{-# LANGUAGE TemplateHaskell, LambdaCase, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE TemplateHaskell, LambdaCase, FlexibleContexts, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Jugendstil.Doc.Layout
   ( Layout(..)
+  , matchLayout
   , computeStyle
   , Document
+  , renderDocument
   , rows
   , columns
   , docs
@@ -15,8 +17,14 @@ module Jugendstil.Doc.Layout
   , columnsDL)
   where
 
+import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Iter
+import Data.BoundingBox
 import Data.BoundingBox as Box
 import Data.Monoid
+import Graphics.Holz
 import Jugendstil.Doc
 import Linear
 
@@ -26,20 +34,38 @@ data Layout a = Horizontal [(Maybe Float, a)]
     | Extend (Box V2 Float -> Box V2 Float) a
     deriving (Functor, Foldable, Traversable)
 
-computeStyle :: Box V2 Float -> Doc Layout a -> Doc [] (Box V2 Float, a)
+matchLayout :: Applicative m => (Maybe a -> b -> m c) -> Layout a -> Layout b -> m (Layout c)
+matchLayout f (Horizontal xs) (Horizontal ys) = Horizontal
+  <$> zipWithM (\m (s, b) -> (,) s <$> f (snd <$> m) b)
+    (map Just xs ++ repeat Nothing) ys
+matchLayout f (Vertical xs) (Vertical ys) = Vertical
+  <$> zipWithM (\m (s, b) -> (,) s <$> f (snd <$> m) b)
+    (map Just xs ++ repeat Nothing) ys
+matchLayout f (Stack xs) (Stack ys) = Stack <$> zipWithM f (map Just xs ++ repeat Nothing) ys
+matchLayout f (Extend _ a) (Extend g b) = Extend g <$> f (Just a) b
+matchLayout f _ l = traverse (f Nothing) l
+
+renderDocument :: (Given Window, MonadIO m) => Document a -> m (Doc Layout (Box V2 Float, a))
+renderDocument doc = do
+  box <- getBoundingBox
+  let doc' = computeStyle box doc
+  renderDoc fst doc'
+  return doc'
+
+computeStyle :: Box V2 Float -> Doc Layout a -> Doc Layout (Box V2 Float, a)
 computeStyle box (Prim a bg) = Prim (box, a) bg
 computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs a (Horizontal xs))
-  = Docs (box, a) $ boxes x0 $ sortLayout (x1 - x0) xs
+  = Docs (box, a) $ Horizontal $ zip (map fst xs) $ boxes x0 $ sortLayout (x1 - x0) xs
   where
     boxes x ((w, d):ws) = computeStyle (Box (V2 x y0) (V2 (x + w) y1)) d : boxes (x + w) ws
     boxes _ [] = []
 computeStyle box@(Box (V2 x0 y0) (V2 x1 y1)) (Docs a (Vertical xs))
-  = Docs (box, a) $ boxes y0 $ sortLayout (y1 - y0) xs
+  = Docs (box, a) $ Vertical $ zip (map fst xs) $ boxes y0 $ sortLayout (y1 - y0) xs
   where
     boxes y ((h, d):hs) = computeStyle (Box (V2 x0 y) (V2 x1 (y + h))) d : boxes (y + h) hs
     boxes _ [] = []
-computeStyle box (Docs a (Stack xs)) = Docs (box, a) (map (computeStyle box) xs)
-computeStyle box (Docs a (Extend f d)) = Docs (box, a) [computeStyle (f box) d]
+computeStyle box (Docs a (Stack xs)) = Docs (box, a) $ Stack $ map (computeStyle box) xs
+computeStyle box (Docs a (Extend f d)) = Docs (box, a) $ Extend f $ computeStyle (f box) d
 computeStyle box (Viewport a d) = Viewport (box, a) (computeStyle box d)
 
 sortLayout :: Float -> [(Maybe Float, a)] -> [(Float, a)]

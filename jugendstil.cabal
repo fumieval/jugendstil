@@ -20,6 +20,7 @@ library
     Jugendstil.Doc.Chart
     Jugendstil.Doc.Layout
     Jugendstil.Doc.TextBox
+    Jugendstil.Doc.Widget
     Jugendstil.Doc
     Jugendstil.Color
   build-depends:       base >= 4.7 && < 5

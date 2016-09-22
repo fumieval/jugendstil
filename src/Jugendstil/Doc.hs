@@ -45,10 +45,10 @@ fill bg = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> pure [(Nothing, Triangle
   , Vertex (V3 x1 y1 0) (V2 1 1) (V3 0 0 1) bg
   ])]
 
-style :: Lens' (Doc f s) s
-style f (Prim s bg) = f s <&> \s' -> Prim s' bg
-style f (Docs s ws) = f s <&> \s' -> Docs s' ws
-style f (Viewport s d) = f s <&> \s' -> Viewport s' d
+annotation :: Lens' (Doc f s) s
+annotation f (Prim s bg) = f s <&> \s' -> Prim s' bg
+annotation f (Docs s ws) = f s <&> \s' -> Docs s' ws
+annotation f (Viewport s d) = f s <&> \s' -> Viewport s' d
 
 text :: Monoid a => Text.Renderer -> V4 Float -> String -> Doc f a
 text renderer fg str = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> do
