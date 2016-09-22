@@ -7,7 +7,6 @@ import Data.List (foldl')
 import Graphics.Holz
 import Graphics.Holz.Vertex
 import Jugendstil.Doc
-import Jugendstil.Doc.Widget
 import Linear
 import qualified Graphics.Holz.Text as Text
 
@@ -47,7 +46,3 @@ docTextBox renderer fg (str, p) = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> 
     Text.render mat
     Text.clear
   return []
-
-textBoxWidget :: (MonadIO m, Given Window) => Text.Renderer -> V4 Float -> String -> Widget m String
-textBoxWidget renderer fg str0 = go (str0, length str0) where
-  go b = Widget $ (\() -> (fst b, \_ -> go <$> updateTextBox b)) <$> docTextBox renderer fg b
