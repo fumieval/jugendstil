@@ -8,7 +8,7 @@ packages:
 - '.'
 - location:
     git: https://github.com/fumieval/holz.git
-    commit: 101d70dd9b7875
+    commit: f065d39
 - location:
     git: https://github.com/bsl/bindings-GLFW.git
     commit: 3bab818
