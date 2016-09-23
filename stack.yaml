@@ -10,7 +10,7 @@ packages:
     git: https://github.com/fumieval/holz.git
     commit: 101d70dd9b7875
 - location:
-    git: git@github.com:bsl/bindings-GLFW.git
+    git: https://github.com/bsl/bindings-GLFW.git
     commit: 3bab818
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
