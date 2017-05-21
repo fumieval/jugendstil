@@ -27,7 +27,6 @@ library
       , holz
       , boundingboxes
       , reflection
-      , objective
       , free
       , exceptions
       , transformers
