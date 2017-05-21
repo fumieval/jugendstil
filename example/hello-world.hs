@@ -7,10 +7,11 @@ import Linear
 import Data.Monoid
 import Control.Monad.Trans.Iter
 
-mainDoc :: Given Window => Text.Renderer -> IterT IO ()
+mainDoc :: Text.Renderer -> ShaderT (HolzT IO) ()
 mainDoc writer = go $ Docs (pure 0, mempty) (Stack []) where
   whiteText = text writer (pure 1) :: Monoid a => String -> Document a
   go doc_ = do
+    setOrthographic
     lang <- mouseOver doc_
     doc <- renderDocument $ rowsDL $ do
       Just 0.25 ==> pure "English" <$ whiteText "Hello, world!"
@@ -22,6 +23,6 @@ mainDoc writer = go $ Docs (pure 0, mempty) (Stack []) where
 main = withHolz $ do
   writer <- Text.typewriter "example/font/TakaoPGothic.ttf"
   win <- openWindow Resizable (Box (V2 0 0) (V2 640 480))
-  retract $ iterWithWindow win $ do
+  retract $ runHolzT win $ do
     setTitle "Hello, world"
-    mainDoc writer
+    withDefaultShader $ mainDoc writer

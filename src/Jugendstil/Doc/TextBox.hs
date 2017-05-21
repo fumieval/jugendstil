@@ -3,6 +3,7 @@ module Jugendstil.Doc.TextBox where
 
 import Control.Lens
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
 import Data.List (foldl')
 import Graphics.Holz
 import Graphics.Holz.Vertex
@@ -12,7 +13,7 @@ import qualified Graphics.Holz.Text as Text
 
 type TextBox = (String, Int)
 
-updateTextBox :: (Given Window, MonadIO m) => TextBox -> m TextBox
+updateTextBox :: (MonadHolz m) => TextBox -> m TextBox
 updateTextBox (str, p) = do
   xs <- typedString
   ks <- typedKeys
@@ -30,8 +31,8 @@ updateTextBox (str, p) = do
     move v _ = v
 
 docTextBox :: Monoid a => Text.Renderer -> V4 Float -> TextBox -> Doc f a
-docTextBox renderer fg (str, p) = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> do
-  renderer `Text.runRenderer` do
+docTextBox renderer fg (str, p) = Prim mempty
+  $ \(Box (V2 x0 y0) (V2 x1 y1)) -> renderer `Text.runRenderer` do
     let size = (y1 - y0) * 2 / 3
     let (l, r) = splitAt p str
     Text.string size fg l
@@ -41,8 +42,7 @@ docTextBox renderer fg (str, p) = Prim mempty $ \(Box (V2 x0 y0) (V2 x1 y1)) -> 
     let k = min 1 $ (x1 - x0) / x
     let mat = translate (V3 (x1 - 4 - k * x) (y0 + (y1 - y0) * 0.75 - k * y) 1)
           !*! scaled (V4 k k k 1)
-    draw (mat !*! (identity & translation . _xy .~ cursor))
+    lift $ draw (mat !*! (identity & translation . _xy .~ cursor))
       $ rectangle (V4 0.5 0.5 0.5 0.8) (V2 (-1) (-size)) (V2 1 0)
     Text.render mat
     Text.clear
-  return []

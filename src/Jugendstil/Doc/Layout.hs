@@ -45,7 +45,7 @@ matchLayout f (Stack xs) (Stack ys) = Stack <$> zipWithM f (map Just xs ++ repea
 matchLayout f (Extend _ a) (Extend g b) = Extend g <$> f (Just a) b
 matchLayout f _ l = traverse (f Nothing) l
 
-renderDocument :: (Given Window, MonadIO m) => Document a -> m (Doc Layout (Box V2 Float, a))
+renderDocument :: Document a -> ShaderT (HolzT IO) (Doc Layout (Box V2 Float, a))
 renderDocument doc = do
   box <- getBoundingBox
   let doc' = computeStyle box doc

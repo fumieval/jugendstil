@@ -9,9 +9,8 @@ import Graphics.Holz
 import Control.Monad
 
 plot :: Monoid a => RGBA -> [V2 Float] -> Doc f a
-plot col ps = Prim mempty $ \box@(Box (V2 x0 y0) (V2 x1 y1)) -> pure $ pure (
-  Nothing,
-  LineStrip,
+plot col ps = Prim mempty $ \box@(Box (V2 x0 y0) (V2 x1 y1)) -> draw identity
+  (LineStrip,
   [ Vertex (V3 x y 1) (V2 0 0) (V3 0 0 1) col
   | V2 u v <- ps
   , let x = x0 + u * (x1 - x0)
